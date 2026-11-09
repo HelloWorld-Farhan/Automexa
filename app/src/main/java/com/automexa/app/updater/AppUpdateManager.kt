@@ -1,20 +1,19 @@
 package com.automexa.app.updater
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Environment
 import androidx.core.content.FileProvider
 import com.automexa.app.BuildConfig
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.FileOutputStream
 
 data class UpdateInfo(
     val hasUpdate: Boolean,
@@ -88,40 +87,60 @@ object AppUpdateManager {
         return false
     }
 
-    fun downloadAndInstall(context: Context, downloadUrl: String, version: String) {
-        val destination = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "Automexa-v$version.apk")
-        if (destination.exists()) destination.delete()
+    /**
+     * Downloads the APK with a live progress callback and triggers installation immediately.
+     */
+    suspend fun downloadWithProgress(
+        context: Context,
+        downloadUrl: String,
+        version: String,
+        onProgress: (Float) -> Unit
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val destination = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "Automexa-v$version.apk")
+            if (destination.exists()) destination.delete()
 
-        val request = DownloadManager.Request(Uri.parse(downloadUrl))
-            .setTitle("Automexa Update v$version")
-            .setDescription("Downloading latest release...")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationUri(Uri.fromFile(destination))
+            val request = Request.Builder().url(downloadUrl).build()
+            val response = httpClient.newCall(request).execute()
 
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val downloadId = downloadManager.enqueue(request)
+            if (!response.isSuccessful) return@withContext false
 
-        // Register receiver for download complete
-        val onComplete = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context?, intent: Intent?) {
-                val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1) ?: -1
-                if (id == downloadId) {
-                    installApk(context, destination)
-                    try {
-                        context.unregisterReceiver(this)
-                    } catch (_: Exception) {}
+            val body = response.body ?: return@withContext false
+            val contentLength = body.contentLength()
+
+            body.byteStream().use { input ->
+                FileOutputStream(destination).use { output ->
+                    val buffer = ByteArray(8 * 1024)
+                    var bytesRead: Int
+                    var totalRead = 0L
+
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        totalRead += bytesRead
+                        if (contentLength > 0) {
+                            val progress = totalRead.toFloat() / contentLength.toFloat()
+                            onProgress(progress)
+                        }
+                    }
+                    output.flush()
                 }
             }
-        }
 
-        context.registerReceiver(
-            onComplete,
-            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-            Context.RECEIVER_NOT_EXPORTED
-        )
+            onProgress(1f)
+            delay(300)
+
+            // Trigger system installation prompt
+            withContext(Dispatchers.Main) {
+                installApk(context, destination)
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
-    private fun installApk(context: Context, apkFile: File) {
+    fun installApk(context: Context, apkFile: File) {
         val apkUri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.provider",

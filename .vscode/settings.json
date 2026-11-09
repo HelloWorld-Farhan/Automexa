@@ -1,0 +1,13 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.import.gradle.enabled": true,
+    "java.import.gradle.wrapper.enabled": true,
+    "kotlin.languageServer.enabled": true,
+    "files.exclude": {
+        "**/.git": true,
+        "**/.gradle": false,
+        "**/build": false
+    },
+    "editor.formatOnSave": true
+}
+

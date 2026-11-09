@@ -7,3 +7,4 @@
         <include domain="database" path="automexa.db" />
     </device-transfer>
 </data-extraction-rules>
+

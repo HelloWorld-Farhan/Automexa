@@ -123,3 +123,4 @@ class AutomexaAccessibilityService : AccessibilityService() {
         instance = this
     }
 }
+

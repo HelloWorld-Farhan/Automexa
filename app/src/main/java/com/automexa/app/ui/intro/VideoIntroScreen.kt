@@ -2,20 +2,20 @@ package com.automexa.app.ui.intro
 
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +29,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.automexa.app.R
+import kotlinx.coroutines.launch
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -36,6 +37,29 @@ fun VideoIntroScreen(
     onSkipOrFinish: () -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // Smooth blur and fade exit animations
+    val blurRadius = remember { Animatable(0f) }
+    val contentAlpha = remember { Animatable(1f) }
+
+    fun triggerExit() {
+        coroutineScope.launch {
+            launch {
+                blurRadius.animateTo(
+                    targetValue = 28f,
+                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
+                )
+            }
+            launch {
+                contentAlpha.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
+                )
+            }.join()
+            onSkipOrFinish()
+        }
+    }
 
     // Initialize ExoPlayer with local intro_video.mp4 resource
     val exoPlayer = remember {
@@ -50,7 +74,7 @@ fun VideoIntroScreen(
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_ENDED) {
-                        onSkipOrFinish()
+                        triggerExit()
                     }
                 }
             })
@@ -66,7 +90,9 @@ fun VideoIntroScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color(0xFFE6E4DC))
+            .alpha(contentAlpha.value)
+            .blur(blurRadius.value.dp)
     ) {
         // Fullscreen ExoPlayer View
         AndroidView(
@@ -90,10 +116,10 @@ fun VideoIntroScreen(
             TextButton(
                 onClick = {
                     exoPlayer.stop()
-                    onSkipOrFinish()
+                    triggerExit()
                 },
                 colors = ButtonDefaults.textButtonColors(
-                    containerColor = Color(0x66000000), // Semi-transparent overlay
+                    containerColor = Color(0x77000000), // Frosted glass overlay
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(20.dp),
@@ -104,7 +130,7 @@ fun VideoIntroScreen(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color.White,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)
                 )
             }
         }

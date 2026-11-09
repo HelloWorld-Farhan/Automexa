@@ -22,3 +22,4 @@ interface JobLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: JobLogEntity): Long
 }
+

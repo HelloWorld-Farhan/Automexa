@@ -38,3 +38,4 @@ abstract class AutomexaDatabase : RoomDatabase() {
         }
     }
 }
+

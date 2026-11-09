@@ -4,7 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
@@ -29,9 +30,15 @@ class MainActivity : ComponentActivity() {
                 var currentScreen by remember { mutableStateOf(AppNavState.INTRO_VIDEO) }
 
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    Crossfade(
+                    AnimatedContent(
                         targetState = currentScreen,
-                        label = "ScreenTransition"
+                        label = "ScreenTransition",
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(500)) + scaleIn(
+                                initialScale = 0.96f,
+                                animationSpec = tween(500)
+                            ) togetherWith fadeOut(animationSpec = tween(400))
+                        }
                     ) { screen ->
                         when (screen) {
                             AppNavState.INTRO_VIDEO -> {

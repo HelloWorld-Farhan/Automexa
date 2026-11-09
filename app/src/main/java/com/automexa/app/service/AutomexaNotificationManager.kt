@@ -14,8 +14,10 @@ object AutomexaNotificationManager {
 
     const val CHANNEL_ID_LIVE = "automexa_live_channel"
     const val CHANNEL_ID_ALERTS = "automexa_alerts_channel"
+    const val CHANNEL_ID_UPDATES = "automexa_updates_channel"
     const val NOTIFICATION_ID_FOREGROUND = 1001
     const val NOTIFICATION_ID_ALERT = 1002
+    const val NOTIFICATION_ID_UPDATE = 1003
 
     fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -41,8 +43,19 @@ object AutomexaNotificationManager {
                 enableVibration(true)
             }
 
+            // In-App Updates channel
+            val updateChannel = NotificationChannel(
+                CHANNEL_ID_UPDATES,
+                "Automexa Updates",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifies when a new version of Automexa is ready to install."
+                setShowBadge(true)
+            }
+
             notificationManager.createNotificationChannel(liveChannel)
             notificationManager.createNotificationChannel(alertChannel)
+            notificationManager.createNotificationChannel(updateChannel)
         }
     }
 
@@ -92,5 +105,30 @@ object AutomexaNotificationManager {
             .build()
 
         notificationManager.notify(NOTIFICATION_ID_ALERT, alert)
+    }
+
+    fun sendUpdateNotification(context: Context, newVersion: String, releaseNotes: String?) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val launchIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("OPEN_UPDATE_DIALOG", true)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            2,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID_UPDATES)
+            .setContentTitle("⚡ Automexa Update Available (v$newVersion)")
+            .setContentText(releaseNotes ?: "A new update is available. Tap to download and install.")
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        notificationManager.notify(NOTIFICATION_ID_UPDATE, notification)
     }
 }

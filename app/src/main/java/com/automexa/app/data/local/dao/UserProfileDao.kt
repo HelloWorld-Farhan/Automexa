@@ -19,3 +19,4 @@ interface UserProfileDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveUserProfile(profile: UserProfileEntity)
 }
+

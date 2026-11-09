@@ -14,3 +14,4 @@ data class JobLogEntity(
     val status: String, // "Applied", "Needs Review", "Skipped", "Failed"
     val notes: String = ""
 )
+

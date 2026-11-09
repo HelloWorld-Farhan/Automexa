@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/Render-Cloud-46E3B7?style=for-the-badge&logo=render&logoColor=white"/>
   <img src="https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?style=for-the-badge&logo=githubactions&logoColor=white"/>
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Version-1.0.1-blue?style=for-the-badge"/>
 </p>
 
 <p align="center">
@@ -205,3 +205,4 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 If Automexa helps automate and streamline your career journey, please give it a ⭐ on GitHub!
 
 <p align="center">Made with ❤️ — Kotlin · Jetpack Compose · Python · FastAPI · Gemini · Render</p>
+

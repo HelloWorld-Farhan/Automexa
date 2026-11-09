@@ -22,3 +22,4 @@ data class UserProfileEntity(
     val primarySkills: String = "Kotlin, Android SDK, Jetpack Compose, Python, RAG, Automation",
     val resumeSummary: String = "Senior Mobile and Automation Software Engineer specializing in scalable native architecture, LLMs, and autonomous services."
 )
+

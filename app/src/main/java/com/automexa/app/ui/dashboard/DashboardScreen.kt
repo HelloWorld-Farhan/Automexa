@@ -1,8 +1,8 @@
 package com.automexa.app.ui.dashboard
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -24,8 +24,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.automexa.app.BuildConfig
 import com.automexa.app.service.AutomexaForegroundService
+import com.automexa.app.service.AutomexaNotificationManager
 import com.automexa.app.ui.theme.*
 import com.automexa.app.updater.AppUpdateManager
 import com.automexa.app.updater.UpdateInfo
@@ -44,9 +46,13 @@ fun DashboardScreen() {
     var isNaukriActive by remember { mutableStateOf(false) }
     var isEngineRunning by remember { mutableStateOf(false) }
 
-    var updateStatus by remember { mutableStateOf<String?>(null) }
+    // In-App Update state
+    var showUpdateDialog by remember { mutableStateOf(false) }
     var latestUpdateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdates by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableFloatStateOf(0f) }
+    var isDownloading by remember { mutableStateOf(false) }
+    var updateStatusMessage by remember { mutableStateOf<String?>(null) }
 
     val currentDateStr = remember {
         val sdf = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
@@ -61,74 +67,35 @@ fun DashboardScreen() {
             .padding(horizontal = 20.dp)
             .verticalScroll(scrollState)
     ) {
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Mock System Header from code.html
+        // Clean Header (Real Android Status bar seamlessly blends above)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "9:41",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                text = "Morning, Farhan!",
+                style = MaterialTheme.typography.headlineLarge,
                 color = TextPrimary
             )
 
-            // Dynamic Island pill
+            // Minimalist real-time engine status pill
             Box(
                 modifier = Modifier
-                    .width(96.dp)
-                    .height(22.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black),
-                contentAlignment = Alignment.CenterEnd
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isEngineRunning) GreenSwitch else PillInactive)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 8.dp)
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF111124))
-                        .border(1.dp, Color(0xFF333344), CircleShape)
-                )
-            }
-
-            // Status symbols
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SignalCellularAlt,
-                    contentDescription = "Signal",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Icon(
-                    imageVector = Icons.Default.Wifi,
-                    contentDescription = "Wifi",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Icon(
-                    imageVector = Icons.Default.BatteryFull,
-                    contentDescription = "Battery",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = if (isEngineRunning) "ACTIVE" else "READY",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isEngineRunning) Color(0xFF1D3514) else TextSecondary
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Greeting Header
-        Text(
-            text = "Morning, Farhan!",
-            style = MaterialTheme.typography.headlineLarge,
-            color = TextPrimary
-        )
 
         Spacer(modifier = Modifier.height(18.dp))
 
@@ -341,15 +308,21 @@ fun DashboardScreen() {
                     Button(
                         onClick = {
                             isCheckingUpdates = true
-                            updateStatus = "Checking GitHub releases..."
+                            updateStatusMessage = "Checking GitHub releases..."
                             coroutineScope.launch {
                                 val info = AppUpdateManager.checkForUpdates()
                                 latestUpdateInfo = info
                                 isCheckingUpdates = false
-                                updateStatus = if (info.hasUpdate) {
-                                    "New version v${info.latestVersion} available!"
+
+                                if (info.hasUpdate) {
+                                    showUpdateDialog = true
+                                    AutomexaNotificationManager.sendUpdateNotification(
+                                        context,
+                                        info.latestVersion,
+                                        info.releaseNotes
+                                    )
                                 } else {
-                                    "You are running the latest version."
+                                    updateStatusMessage = "You're running the latest version (v${BuildConfig.VERSION_NAME})."
                                 }
                             }
                         },
@@ -376,44 +349,159 @@ fun DashboardScreen() {
                     }
                 }
 
-                updateStatus?.let { status ->
+                updateStatusMessage?.let { msg ->
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = status,
+                        text = msg,
                         fontSize = 12.sp,
-                        color = if (latestUpdateInfo?.hasUpdate == true) Color(0xFF2E7D32) else TextSecondary
+                        color = TextSecondary
                     )
-                }
-
-                AnimatedVisibility(visible = latestUpdateInfo?.hasUpdate == true) {
-                    Button(
-                        onClick = {
-                            latestUpdateInfo?.let { info ->
-                                info.downloadUrl?.let { url ->
-                                    AppUpdateManager.downloadAndInstall(context, url, info.latestVersion)
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = GreenSwitch,
-                            contentColor = Color(0xFF1D3514)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp)
-                    ) {
-                        Text(
-                            text = "Download & Install Update",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(40.dp))
+    }
+
+    // Modern In-App Update Modal Popup (Matching code.html design)
+    if (showUpdateDialog) {
+        Dialog(onDismissRequest = { if (!isDownloading) showUpdateDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(CardBackground)
+                    .padding(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Update Icon with soft accent circle
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(SceneTeal),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SystemUpdateAlt,
+                            contentDescription = "Update",
+                            tint = Color(0xFF1D3514),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "New Version Available",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Automexa v${latestUpdateInfo?.latestVersion ?: "1.0.1"}",
+                        fontSize = 13.sp,
+                        color = TextSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Release notes card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(AppBackground)
+                            .padding(14.dp)
+                    ) {
+                        Text(
+                            text = latestUpdateInfo?.releaseNotes?.take(200) ?: "Includes performance enhancements, improved form fill logic, and background automation stability.",
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            color = TextPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Download Progress Animation
+                    if (isDownloading) {
+                        val animatedProgress by animateFloatAsState(
+                            targetValue = downloadProgress,
+                            label = "downloadProgress"
+                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            LinearProgressIndicator(
+                                progress = { animatedProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(CircleShape),
+                                color = GreenSwitch,
+                                trackColor = PillInactive
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Downloading: ${(downloadProgress * 100).toInt()}%",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = TextPrimary
+                            )
+                        }
+                    } else {
+                        // Action Buttons: Cancel or Update Now
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            TextButton(
+                                onClick = { showUpdateDialog = false },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.textButtonColors(contentColor = TextSecondary)
+                            ) {
+                                Text("Later", fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    latestUpdateInfo?.downloadUrl?.let { url ->
+                                        isDownloading = true
+                                        coroutineScope.launch {
+                                            AppUpdateManager.downloadWithProgress(
+                                                context,
+                                                url,
+                                                latestUpdateInfo?.latestVersion ?: "latest"
+                                            ) { progress ->
+                                                downloadProgress = progress
+                                            }
+                                            isDownloading = false
+                                            showUpdateDialog = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1.5f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AccentDark,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Text("Update Now", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
