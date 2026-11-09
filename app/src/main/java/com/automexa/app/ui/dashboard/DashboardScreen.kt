@@ -2,6 +2,7 @@ package com.automexa.app.ui.dashboard
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -21,11 +22,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.automexa.app.BuildConfig
+import com.automexa.app.R
 import com.automexa.app.service.AutomexaForegroundService
 import com.automexa.app.service.AutomexaNotificationManager
 import com.automexa.app.ui.theme.*
@@ -377,55 +380,62 @@ fun DashboardScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Update Icon with soft accent circle
-                    Box(
+                    // Official App Logo
+                    Image(
+                        painter = painterResource(id = R.drawable.logo),
+                        contentDescription = "Automexa Logo",
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(SceneTeal),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SystemUpdateAlt,
-                            contentDescription = "Update",
-                            tint = Color(0xFF1D3514),
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+                            .size(60.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                    )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "New Version Available",
+                        text = "Automexa",
                         fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
-                        text = "Automexa v${latestUpdateInfo?.latestVersion ?: "1.0.1"}",
+                        text = "Version ${latestUpdateInfo?.latestVersion ?: "1.0.5"} Ready",
                         fontSize = 13.sp,
                         color = TextSecondary
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Release notes card
+                    // Clean "What's New" card (without GitHub URLs)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(18.dp))
                             .background(AppBackground)
-                            .padding(14.dp)
+                            .padding(16.dp)
                     ) {
-                        Text(
-                            text = latestUpdateInfo?.releaseNotes?.take(200) ?: "Includes performance enhancements, improved form fill logic, and background automation stability.",
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            color = TextPrimary
-                        )
+                        Column {
+                            Text(
+                                text = "What's New in this update",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            val changelogBullets = formatChangelog(latestUpdateInfo?.releaseNotes)
+                            changelogBullets.forEach { bullet ->
+                                Text(
+                                    text = bullet,
+                                    fontSize = 11.5.sp,
+                                    lineHeight = 16.sp,
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -619,4 +629,41 @@ fun PlatformDeviceCard(
             }
         }
     }
+}
+
+fun formatChangelog(raw: String?): List<String> {
+    if (raw.isNullOrBlank()) {
+        return listOf(
+            "• Performance optimizations and speed enhancements",
+            "• Zero-friction in-app self updating",
+            "• Improved background automation stability"
+        )
+    }
+
+    val lines = raw.lines()
+    val bullets = mutableListOf<String>()
+    for (line in lines) {
+        val trimmed = line.trim()
+        if (trimmed.startsWith("*") || trimmed.startsWith("-")) {
+            // Strip markdown links, full URLs, and @mentions
+            var cleaned = trimmed.removePrefix("*").removePrefix("-").trim()
+            cleaned = cleaned.replace(Regex("\\[(.*?)\\]\\(.*?\\)"), "$1")
+            cleaned = cleaned.replace(Regex("https?://\\S+"), "")
+            cleaned = cleaned.replace(Regex("@\\w+"), "")
+            cleaned = cleaned.replace(Regex("by\\s+in\\s*"), "")
+            cleaned = cleaned.trim()
+            if (cleaned.length > 5 && !cleaned.contains("Full Changelog", ignoreCase = true)) {
+                bullets.add("• $cleaned")
+            }
+        }
+    }
+
+    if (bullets.isEmpty()) {
+        return listOf(
+            "• Performance optimizations and speed enhancements",
+            "• Zero-friction in-app self updating",
+            "• Improved background automation stability"
+        )
+    }
+    return bullets.take(3)
 }

@@ -201,3 +201,4 @@ function handleResetPassword(email, newPassword, otp) {
 
   return { status: "error", message: "Account not found" };
 }
+
