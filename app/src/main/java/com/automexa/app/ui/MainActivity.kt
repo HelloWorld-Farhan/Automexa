@@ -18,13 +18,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.automexa.app.data.auth.AuthManager
 import com.automexa.app.service.AutomexaNotificationManager
+import com.automexa.app.ui.auth.AuthScreen
 import com.automexa.app.ui.dashboard.DashboardScreen
 import com.automexa.app.ui.intro.VideoIntroScreen
 import com.automexa.app.ui.theme.AutomexaTheme
 
 enum class AppNavState {
     INTRO_VIDEO,
+    AUTH,
     DASHBOARD
 }
 
@@ -36,6 +39,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             AutomexaTheme {
+                val authManager = remember { AuthManager(this@MainActivity) }
                 var currentScreen by remember { mutableStateOf(AppNavState.INTRO_VIDEO) }
 
                 // Runtime Notification Permission for Android 13+ (API 33+)
@@ -81,6 +85,17 @@ class MainActivity : ComponentActivity() {
                             AppNavState.INTRO_VIDEO -> {
                                 VideoIntroScreen(
                                     onSkipOrFinish = {
+                                        currentScreen = if (authManager.isLoggedIn) {
+                                            AppNavState.DASHBOARD
+                                        } else {
+                                            AppNavState.AUTH
+                                        }
+                                    }
+                                )
+                            }
+                            AppNavState.AUTH -> {
+                                AuthScreen(
+                                    onAuthSuccess = {
                                         currentScreen = AppNavState.DASHBOARD
                                     }
                                 )

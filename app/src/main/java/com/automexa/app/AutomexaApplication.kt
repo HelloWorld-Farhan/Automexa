@@ -3,6 +3,7 @@ package com.automexa.app
 import android.app.Application
 import com.automexa.app.data.local.AutomexaDatabase
 import com.automexa.app.service.AutomexaNotificationManager
+import com.automexa.app.updater.RenderKeepAliveWorker
 import com.automexa.app.updater.UpdateCheckWorker
 
 class AutomexaApplication : Application() {
@@ -17,5 +18,7 @@ class AutomexaApplication : Application() {
         AutomexaNotificationManager.createNotificationChannels(this)
         // Schedule periodic background update checks
         UpdateCheckWorker.schedulePeriodicCheck(this)
+        // Schedule 24/7 Render Keep-Alive pinger
+        RenderKeepAliveWorker.scheduleKeepAlive(this)
     }
 }
