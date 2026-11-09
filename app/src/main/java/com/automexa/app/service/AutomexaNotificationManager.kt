@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.automexa.app.R
 import com.automexa.app.ui.MainActivity
 
 object AutomexaNotificationManager {
@@ -41,15 +40,19 @@ object AutomexaNotificationManager {
             ).apply {
                 description = "Urgent alerts when human interaction or manual review is required."
                 enableVibration(true)
+                enableLights(true)
+                setShowBadge(true)
             }
 
             // In-App Updates channel
             val updateChannel = NotificationChannel(
                 CHANNEL_ID_UPDATES,
                 "Automexa Updates",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notifies when a new version of Automexa is ready to install."
+                enableVibration(true)
+                enableLights(true)
                 setShowBadge(true)
             }
 
@@ -97,6 +100,7 @@ object AutomexaNotificationManager {
         val alert = NotificationCompat.Builder(context, CHANNEL_ID_ALERTS)
             .setContentTitle(title)
             .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -120,13 +124,18 @@ object AutomexaNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val summaryText = releaseNotes?.take(250)
+            ?: "Automexa v$newVersion is ready. Tap to download and install with one touch."
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_UPDATES)
-            .setContentTitle("⚡ Automexa Update Available (v$newVersion)")
-            .setContentText(releaseNotes ?: "A new update is available. Tap to download and install.")
+            .setContentTitle("⚡ Automexa Update Ready (v$newVersion)")
+            .setContentText("Tap to install the latest build with improved speed.")
+            .setStyle(NotificationCompat.BigTextStyle().bigText(summaryText))
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .build()
 
         notificationManager.notify(NOTIFICATION_ID_UPDATE, notification)

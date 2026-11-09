@@ -1,6 +1,7 @@
 package com.automexa.app.ui.intro
 
 import android.net.Uri
+import android.os.Build
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -14,9 +15,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,22 +40,29 @@ fun VideoIntroScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Smooth blur and fade exit animations
-    val blurRadius = remember { Animatable(0f) }
-    val contentAlpha = remember { Animatable(1f) }
+    // GPU-accelerated animatables
+    val animAlpha = remember { Animatable(1f) }
+    val animScale = remember { Animatable(1f) }
+    val animBlur = remember { Animatable(0f) }
 
-    fun triggerExit() {
+    fun triggerFastExit() {
         coroutineScope.launch {
             launch {
-                blurRadius.animateTo(
-                    targetValue = 28f,
-                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
+                animAlpha.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
                 )
             }
             launch {
-                contentAlpha.animateTo(
-                    targetValue = 0f,
-                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
+                animScale.animateTo(
+                    targetValue = 1.04f,
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                )
+            }
+            launch {
+                animBlur.animateTo(
+                    targetValue = 24f,
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
                 )
             }.join()
             onSkipOrFinish()
@@ -74,7 +82,7 @@ fun VideoIntroScreen(
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_ENDED) {
-                        triggerExit()
+                        triggerFastExit()
                     }
                 }
             })
@@ -91,8 +99,14 @@ fun VideoIntroScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFE6E4DC))
-            .alpha(contentAlpha.value)
-            .blur(blurRadius.value.dp)
+            .graphicsLayer {
+                alpha = animAlpha.value
+                scaleX = animScale.value
+                scaleY = animScale.value
+            }
+            .then(
+                if (animBlur.value > 0f) Modifier.blur(animBlur.value.dp) else Modifier
+            )
     ) {
         // Fullscreen ExoPlayer View
         AndroidView(
@@ -106,7 +120,7 @@ fun VideoIntroScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Top-Right "Skip" Button with frosted dark pill styling
+        // Top-Right "Skip" Button with frosted glass aesthetic
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -116,10 +130,10 @@ fun VideoIntroScreen(
             TextButton(
                 onClick = {
                     exoPlayer.stop()
-                    triggerExit()
+                    triggerFastExit()
                 },
                 colors = ButtonDefaults.textButtonColors(
-                    containerColor = Color(0x77000000), // Frosted glass overlay
+                    containerColor = Color(0x77000000), // High-contrast frosted overlay
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(20.dp),
