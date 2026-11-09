@@ -474,6 +474,7 @@ fun DashboardScreen() {
                             Button(
                                 onClick = {
                                     latestUpdateInfo?.downloadUrl?.let { url ->
+                                        AppUpdateManager.checkAndRequestInstallPermission(context)
                                         isDownloading = true
                                         coroutineScope.launch {
                                             AppUpdateManager.downloadWithProgress(

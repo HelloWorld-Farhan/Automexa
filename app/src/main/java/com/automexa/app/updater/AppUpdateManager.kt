@@ -3,9 +3,11 @@ package com.automexa.app.updater
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Environment
+import android.os.Build
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.automexa.app.BuildConfig
+import com.automexa.app.service.AutomexaNotificationManager
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -88,7 +90,25 @@ object AppUpdateManager {
     }
 
     /**
-     * Downloads the APK with a live progress callback and triggers installation immediately.
+     * Checks whether the user has granted permission to install unknown apps.
+     * If not, redirects to the exact system settings toggle.
+     */
+    fun checkAndRequestInstallPermission(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!context.packageManager.canRequestPackageInstalls()) {
+                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Downloads the APK internally with real-time notification progress and triggers system install.
      */
     suspend fun downloadWithProgress(
         context: Context,
@@ -97,7 +117,12 @@ object AppUpdateManager {
         onProgress: (Float) -> Unit
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val destination = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "Automexa-v$version.apk")
+            // Check unknown sources security permission before starting
+            withContext(Dispatchers.Main) {
+                checkAndRequestInstallPermission(context)
+            }
+
+            val destination = File(context.cacheDir, "Automexa-v$version.apk")
             if (destination.exists()) destination.delete()
 
             val request = Request.Builder().url(downloadUrl).build()
@@ -113,13 +138,25 @@ object AppUpdateManager {
                     val buffer = ByteArray(8 * 1024)
                     var bytesRead: Int
                     var totalRead = 0L
+                    var lastNotifiedPercent = -1
 
                     while (input.read(buffer).also { bytesRead = it } != -1) {
                         output.write(buffer, 0, bytesRead)
                         totalRead += bytesRead
                         if (contentLength > 0) {
                             val progress = totalRead.toFloat() / contentLength.toFloat()
+                            val percent = (progress * 100).toInt()
                             onProgress(progress)
+
+                            // Throttle notification updates every 5%
+                            if (percent >= lastNotifiedPercent + 5 || percent == 100) {
+                                lastNotifiedPercent = percent
+                                AutomexaNotificationManager.showDownloadProgressNotification(
+                                    context,
+                                    percent,
+                                    version
+                                )
+                            }
                         }
                     }
                     output.flush()
@@ -128,6 +165,9 @@ object AppUpdateManager {
 
             onProgress(1f)
             delay(300)
+
+            // Show download complete notification with one-tap install
+            AutomexaNotificationManager.showDownloadCompleteNotification(context, destination, version)
 
             // Trigger system installation prompt
             withContext(Dispatchers.Main) {

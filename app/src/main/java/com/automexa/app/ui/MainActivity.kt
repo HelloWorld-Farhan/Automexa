@@ -1,6 +1,7 @@
 package com.automexa.app.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -17,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.automexa.app.service.AutomexaNotificationManager
 import com.automexa.app.ui.dashboard.DashboardScreen
 import com.automexa.app.ui.intro.VideoIntroScreen
 import com.automexa.app.ui.theme.AutomexaTheme
@@ -40,7 +42,9 @@ class MainActivity : ComponentActivity() {
                 val permissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission()
                 ) { isGranted ->
-                    // Notification permission handled
+                    if (isGranted) {
+                        triggerWelcomeIfFirstTime()
+                    }
                 }
 
                 LaunchedEffect(Unit) {
@@ -52,7 +56,11 @@ class MainActivity : ComponentActivity() {
 
                         if (!hasPermission) {
                             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            triggerWelcomeIfFirstTime()
                         }
+                    } else {
+                        triggerWelcomeIfFirstTime()
                     }
                 }
 
@@ -84,6 +92,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun triggerWelcomeIfFirstTime() {
+        val prefs = getSharedPreferences("automexa_prefs", Context.MODE_PRIVATE)
+        val hasSent = prefs.getBoolean("has_sent_welcome", false)
+        if (!hasSent) {
+            AutomexaNotificationManager.sendWelcomeNotification(this)
+            prefs.edit().putBoolean("has_sent_welcome", true).apply()
         }
     }
 }
