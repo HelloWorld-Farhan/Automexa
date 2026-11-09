@@ -1,0 +1,38 @@
+# Android & Gradle
+.gradle/
+build/
+app/build/
+*.apk
+*.aab
+
+# Local configuration file (sdk.dir, etc)
+local.properties
+
+# Log Files
+*.log
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# IntelliJ IDEA / Android Studio
+*.iml
+.idea/
+.idea_modules/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# Large temporary files
+release_artifacts/
+release_windows/
+macos_bundle/
+ios_archive/
+release_assets/

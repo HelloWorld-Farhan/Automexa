@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Automexa</string>
+    <string name="accessibility_service_description">Automexa autonomous engine: interacts with configured job portals to fill and submit job applications according to your stored candidate profile.</string>
+</resources>
